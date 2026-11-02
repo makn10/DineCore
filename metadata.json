@@ -1,0 +1,6 @@
+{
+  "name": "Dine Core",
+  "description": "Hostel and mess meal management app tracking meals, bazar expenses, deposits, bills, and live meal rates with paisa accuracy.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

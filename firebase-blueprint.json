@@ -1,0 +1,191 @@
+{
+  "entities": {
+    "User": {
+      "path": "users/{userId}",
+      "fields": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "phone": { "type": "string" },
+        "activeMessId": { "type": "string" },
+        "themeMode": { "type": "string" },
+        "language": { "type": "string" },
+        "createdAt": { "type": "timestamp" },
+        "updatedAt": { "type": "timestamp" }
+      }
+    },
+    "Mess": {
+      "path": "messes/{messId}",
+      "fields": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "inviteCode": { "type": "string" },
+        "currentPeriodId": { "type": "string" },
+        "creatorId": { "type": "string" },
+        "managerIds": { "type": "list" },
+        "subManagerIds": { "type": "list" },
+        "memberIds": { "type": "list" },
+        "createdAt": { "type": "timestamp" },
+        "updatedAt": { "type": "timestamp" }
+      }
+    },
+    "Member": {
+      "path": "messes/{messId}/members/{memberId}",
+      "fields": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "role": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "openingBalancePaisa": { "type": "number" },
+        "joinedAt": { "type": "timestamp" }
+      }
+    },
+    "Period": {
+      "path": "messes/{messId}/periods/{periodId}",
+      "fields": {
+        "id": { "type": "string" },
+        "year": { "type": "number" },
+        "month": { "type": "number" },
+        "name": { "type": "string" },
+        "isClosed": { "type": "boolean" },
+        "closedAt": { "type": "timestamp" },
+        "closedBy": { "type": "string" },
+        "snapshotTotalMeals": { "type": "number" },
+        "snapshotMealCostPaisa": { "type": "number" },
+        "snapshotMealRatePaisa": { "type": "number" },
+        "snapshotTotalDepositsPaisa": { "type": "number" },
+        "snapshotTotalBillsPaisa": { "type": "number" },
+        "snapshotMessBalancePaisa": { "type": "number" }
+      }
+    },
+    "MealRecord": {
+      "path": "messes/{messId}/meals/{mealId}",
+      "fields": {
+        "id": { "type": "string" },
+        "periodId": { "type": "string" },
+        "date": { "type": "string" },
+        "memberId": { "type": "string" },
+        "memberName": { "type": "string" },
+        "breakfast": { "type": "number" },
+        "lunch": { "type": "number" },
+        "dinner": { "type": "number" },
+        "totalMeals": { "type": "number" },
+        "updatedBy": { "type": "string" },
+        "updatedAt": { "type": "timestamp" }
+      }
+    },
+    "BazarEntry": {
+      "path": "messes/{messId}/bazar/{bazarId}",
+      "fields": {
+        "id": { "type": "string" },
+        "periodId": { "type": "string" },
+        "date": { "type": "string" },
+        "shopperMemberId": { "type": "string" },
+        "shopperName": { "type": "string" },
+        "items": { "type": "list" },
+        "totalCostPaisa": { "type": "number" },
+        "isAddedToDeposit": { "type": "boolean" },
+        "depositId": { "type": "string" },
+        "note": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "timestamp" }
+      }
+    },
+    "Deposit": {
+      "path": "messes/{messId}/deposits/{depositId}",
+      "fields": {
+        "id": { "type": "string" },
+        "periodId": { "type": "string" },
+        "date": { "type": "string" },
+        "memberId": { "type": "string" },
+        "memberName": { "type": "string" },
+        "amountPaisa": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "note": { "type": "string" },
+        "isFromBazar": { "type": "boolean" },
+        "bazarId": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "timestamp" }
+      }
+    },
+    "MonthlyBill": {
+      "path": "messes/{messId}/bills/{billId}",
+      "fields": {
+        "id": { "type": "string" },
+        "periodId": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "amountPaisa": { "type": "number" },
+        "splitMode": { "type": "string" },
+        "includedMemberIds": { "type": "list" },
+        "note": { "type": "string" },
+        "updatedBy": { "type": "string" },
+        "updatedAt": { "type": "timestamp" }
+      }
+    },
+    "ExtraCost": {
+      "path": "messes/{messId}/extraCosts/{costId}",
+      "fields": {
+        "id": { "type": "string" },
+        "periodId": { "type": "string" },
+        "title": { "type": "string" },
+        "amountPaisa": { "type": "number" },
+        "participantMemberIds": { "type": "list" },
+        "date": { "type": "string" },
+        "note": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "timestamp" }
+      }
+    },
+    "Notice": {
+      "path": "messes/{messId}/notices/{noticeId}",
+      "fields": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorId": { "type": "string" },
+        "createdAt": { "type": "timestamp" }
+      }
+    },
+    "MenuItem": {
+      "path": "messes/{messId}/menu/{menuId}",
+      "fields": {
+        "id": { "type": "string" },
+        "dayOfWeek": { "type": "string" },
+        "breakfast": { "type": "string" },
+        "lunch": { "type": "string" },
+        "dinner": { "type": "string" },
+        "updatedBy": { "type": "string" },
+        "updatedAt": { "type": "timestamp" }
+      }
+    },
+    "RoutineDay": {
+      "path": "messes/{messId}/routine/{routineId}",
+      "fields": {
+        "id": { "type": "string" },
+        "dayOfWeek": { "type": "string" },
+        "memberId": { "type": "string" },
+        "memberName": { "type": "string" },
+        "assignedBy": { "type": "string" },
+        "updatedAt": { "type": "timestamp" }
+      }
+    },
+    "AuditLog": {
+      "path": "messes/{messId}/audit/{auditId}",
+      "fields": {
+        "id": { "type": "string" },
+        "action": { "type": "string" },
+        "entityType": { "type": "string" },
+        "entityId": { "type": "string" },
+        "details": { "type": "string" },
+        "performedBy": { "type": "string" },
+        "performedByName": { "type": "string" },
+        "timestamp": { "type": "timestamp" }
+      }
+    }
+  }
+}

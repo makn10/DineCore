@@ -1,0 +1,14 @@
+{
+  "firestore": {
+    "database": "ai-studio-android-smartmes-29b69188-12af-4e3f-8599-c1350ab78735",
+    "rules": "firestore.rules"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8085
+    },
+    "auth": {
+      "port": 9099
+    }
+  }
+}
