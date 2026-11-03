@@ -124,15 +124,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     init {
-        repository.auth.addAuthStateListener { auth ->
-            _currentUser.value = auth.currentUser
-            val uid = auth.currentUser?.uid
-            if (uid != null) {
-                observeUserProfile(uid)
-            } else {
-                _userProfile.value = null
-                _currentMess.value = null
+        try {
+            repository.auth.addAuthStateListener { auth ->
+                _currentUser.value = auth.currentUser
+                val uid = auth.currentUser?.uid
+                if (uid != null) {
+                    observeUserProfile(uid)
+                } else {
+                    _userProfile.value = null
+                    _currentMess.value = null
+                }
             }
+        } catch (e: Throwable) {
+            android.util.Log.e("MainViewModel", "Auth listener setup handled safely: ${e.message}", e)
         }
     }
 

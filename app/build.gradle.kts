@@ -16,7 +16,7 @@ android {
   defaultConfig {
     applicationId = "com.aistudio.smartmess.vpkzma"
     minSdk = 24
-    targetSdk = 36
+    targetSdk = 35
     versionCode = 1
     versionName = "1.0"
 
@@ -65,9 +65,23 @@ android {
     buildConfig = true
   }
   testOptions { unitTests { isIncludeAndroidResources = true } }
-  dependenciesInfo {
-    includeInApk = false
-    includeInBundle = true
+  packaging {
+    resources {
+      excludes += setOf(
+        "META-INF/AL2.0",
+        "META-INF/LGPL2.1",
+        "META-INF/DEPENDENCIES",
+        "META-INF/LICENSE",
+        "META-INF/LICENSE.txt",
+        "META-INF/license.txt",
+        "META-INF/NOTICE",
+        "META-INF/NOTICE.txt",
+        "META-INF/notice.txt"
+      )
+    }
+    jniLibs {
+      useLegacyPackaging = true
+    }
   }
 }
 

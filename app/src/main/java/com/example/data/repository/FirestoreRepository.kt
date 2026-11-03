@@ -36,19 +36,38 @@ import java.util.UUID
 
 class FirestoreRepository(private val context: Context) {
 
-    val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    val auth: FirebaseAuth by lazy {
+        try {
+            if (FirebaseApp.getApps(context).isEmpty()) {
+                FirebaseApp.initializeApp(context)
+            }
+            FirebaseAuth.getInstance()
+        } catch (e: Throwable) {
+            android.util.Log.e("FirestoreRepository", "FirebaseAuth initialization error: ${e.message}", e)
+            FirebaseAuth.getInstance()
+        }
+    }
 
     private val firestore: FirebaseFirestore by lazy {
-        val dbId = context.getString(R.string.firestore_database_id)
-        if (dbId.isNotEmpty() && dbId != "default") {
-            FirebaseFirestore.getInstance(FirebaseApp.getInstance(), dbId)
-        } else {
+        try {
+            if (FirebaseApp.getApps(context).isEmpty()) {
+                FirebaseApp.initializeApp(context)
+            }
+            val resId = context.resources.getIdentifier("firestore_database_id", "string", context.packageName)
+            val dbId = if (resId != 0) context.getString(resId) else ""
+            if (dbId.isNotEmpty() && dbId != "default") {
+                FirebaseFirestore.getInstance(FirebaseApp.getInstance(), dbId)
+            } else {
+                FirebaseFirestore.getInstance()
+            }
+        } catch (e: Throwable) {
+            android.util.Log.e("FirestoreRepository", "FirebaseFirestore initialization error: ${e.message}", e)
             FirebaseFirestore.getInstance()
         }
     }
 
     val currentUser: FirebaseUser?
-        get() = auth.currentUser
+        get() = try { auth.currentUser } catch (e: Throwable) { null }
 
     // ---------------- AUTH & USER ----------------
 

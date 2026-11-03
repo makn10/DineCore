@@ -22,7 +22,11 @@ import java.util.Locale
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        try {
+            enableEdgeToEdge()
+        } catch (e: Throwable) {
+            android.util.Log.w("MainActivity", "enableEdgeToEdge exception safely caught: ${e.message}")
+        }
         setContent {
             val mainViewModel: MainViewModel = viewModel()
             val userProfile by mainViewModel.userProfile.collectAsState()
