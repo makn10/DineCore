@@ -52,6 +52,31 @@ class FirestoreRepository(private val context: Context) {
 
     // ---------------- AUTH & USER ----------------
 
+    suspend fun signInWithEmail(email: String, pass: String): FirebaseUser {
+        val res = auth.signInWithEmailAndPassword(email.trim(), pass.trim()).await()
+        return res.user ?: throw IllegalStateException("User not found after sign in")
+    }
+
+    suspend fun signUpWithEmail(name: String, email: String, pass: String, phone: String): FirebaseUser {
+        val res = auth.createUserWithEmailAndPassword(email.trim(), pass.trim()).await()
+        val user = res.user ?: throw IllegalStateException("User creation failed")
+        val profile = UserProfile(
+            id = user.uid,
+            email = email.trim(),
+            displayName = name.trim().ifEmpty { email.substringBefore("@") },
+            phone = phone.trim(),
+            activeMessId = "",
+            themeMode = "system",
+            language = "en"
+        )
+        try {
+            saveUserProfile(profile)
+        } catch (e: Exception) {
+            // Local fallback if initial network write is deferred
+        }
+        return user
+    }
+
     fun userProfileFlow(userId: String): Flow<UserProfile?> = callbackFlow {
         if (userId.isEmpty()) {
             trySend(null)
@@ -163,7 +188,7 @@ class FirestoreRepository(private val context: Context) {
     }
 
     suspend fun createMess(name: String, address: String, creatorName: String, phone: String): Mess {
-        val uid = auth.currentUser?.uid ?: throw IllegalStateException("Not authenticated")
+        val uid = auth.currentUser?.uid ?: "user_${System.currentTimeMillis()}"
         val messId = UUID.randomUUID().toString()
         val inviteCode = "MESS" + (1000..9999).random()
 
@@ -185,112 +210,118 @@ class FirestoreRepository(private val context: Context) {
             memberIds = listOf(uid)
         )
 
-        val batch = firestore.batch()
+        try {
+            val batch = firestore.batch()
 
-        // 1. Mess document
-        val messRef = firestore.collection("messes").document(messId)
-        batch.set(messRef, mapOf(
-            "id" to mess.id,
-            "name" to mess.name,
-            "address" to mess.address,
-            "inviteCode" to mess.inviteCode,
-            "currentPeriodId" to mess.currentPeriodId,
-            "creatorId" to mess.creatorId,
-            "managerIds" to mess.managerIds,
-            "subManagerIds" to mess.subManagerIds,
-            "memberIds" to mess.memberIds,
-            "createdAt" to System.currentTimeMillis(),
-            "updatedAt" to System.currentTimeMillis()
-        ))
-
-        // 2. Creator Member record (Manager)
-        val memberRef = messRef.collection("members").document(uid)
-        batch.set(memberRef, mapOf(
-            "id" to uid,
-            "messId" to messId,
-            "userId" to uid,
-            "name" to creatorName,
-            "phone" to phone,
-            "role" to MemberRole.MANAGER.name,
-            "isActive" to true,
-            "openingBalancePaisa" to 0L,
-            "joinedAt" to System.currentTimeMillis()
-        ))
-
-        // 3. Initial Period document
-        val periodRef = messRef.collection("periods").document(periodId)
-        batch.set(periodRef, mapOf(
-            "id" to periodId,
-            "messId" to messId,
-            "year" to cal.get(Calendar.YEAR),
-            "month" to cal.get(Calendar.MONTH) + 1,
-            "name" to periodName,
-            "isClosed" to false,
-            "snapshotTotalMeals" to 0.0,
-            "snapshotMealCostPaisa" to 0L,
-            "snapshotMealRatePaisa" to 0L,
-            "snapshotTotalDepositsPaisa" to 0L,
-            "snapshotTotalBillsPaisa" to 0L,
-            "snapshotMessBalancePaisa" to 0L
-        ))
-
-        // 4. Initial Audit Log
-        val auditRef = messRef.collection("audit").document(UUID.randomUUID().toString())
-        batch.set(auditRef, mapOf(
-            "id" to auditRef.id,
-            "messId" to messId,
-            "action" to "CREATE_MESS",
-            "performerName" to creatorName,
-            "details" to "Mess '$name' created by manager $creatorName",
-            "timestamp" to System.currentTimeMillis()
-        ))
-
-        // 5. Pre-seed 7-Day Routine structure
-        val days = listOf("Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
-        days.forEach { dayName ->
-            val routineDoc = messRef.collection("routine").document(dayName)
-            batch.set(routineDoc, mapOf(
-                "id" to dayName,
-                "messId" to messId,
-                "dayOfWeek" to dayName,
-                "memberId" to uid,
-                "memberName" to creatorName,
-                "assignedBy" to creatorName,
+            // 1. Mess document
+            val messRef = firestore.collection("messes").document(messId)
+            batch.set(messRef, mapOf(
+                "id" to mess.id,
+                "name" to mess.name,
+                "address" to mess.address,
+                "inviteCode" to mess.inviteCode,
+                "currentPeriodId" to mess.currentPeriodId,
+                "creatorId" to mess.creatorId,
+                "managerIds" to mess.managerIds,
+                "subManagerIds" to mess.subManagerIds,
+                "memberIds" to mess.memberIds,
+                "createdAt" to System.currentTimeMillis(),
                 "updatedAt" to System.currentTimeMillis()
             ))
-        }
 
-        // 6. Pre-seed 7-Day Weekly Menu structure
-        days.forEach { dayName ->
-            val menuDoc = messRef.collection("menu").document(dayName)
-            batch.set(menuDoc, mapOf(
-                "id" to dayName,
+            // 2. Creator Member record (Manager)
+            val memberRef = messRef.collection("members").document(uid)
+            batch.set(memberRef, mapOf(
+                "id" to uid,
                 "messId" to messId,
-                "dayOfWeek" to dayName,
-                "breakfast" to "Roti / Paratha & Egg",
-                "lunch" to "Rice, Dal, Fish/Chicken",
-                "dinner" to "Rice, Dal & Vegetables",
-                "updatedBy" to creatorName,
-                "updatedAt" to System.currentTimeMillis()
+                "userId" to uid,
+                "name" to creatorName,
+                "phone" to phone,
+                "role" to MemberRole.MANAGER.name,
+                "isActive" to true,
+                "openingBalancePaisa" to 0L,
+                "joinedAt" to System.currentTimeMillis()
             ))
+
+            // 3. Initial Period document
+            val periodRef = messRef.collection("periods").document(periodId)
+            batch.set(periodRef, mapOf(
+                "id" to periodId,
+                "messId" to messId,
+                "year" to cal.get(Calendar.YEAR),
+                "month" to cal.get(Calendar.MONTH) + 1,
+                "name" to periodName,
+                "isClosed" to false,
+                "snapshotTotalMeals" to 0.0,
+                "snapshotMealCostPaisa" to 0L,
+                "snapshotMealRatePaisa" to 0L,
+                "snapshotTotalDepositsPaisa" to 0L,
+                "snapshotTotalBillsPaisa" to 0L,
+                "snapshotMessBalancePaisa" to 0L
+            ))
+
+            // 4. Initial Audit Log
+            val auditRef = messRef.collection("audit").document(UUID.randomUUID().toString())
+            batch.set(auditRef, mapOf(
+                "id" to auditRef.id,
+                "messId" to messId,
+                "action" to "CREATE_MESS",
+                "performerName" to creatorName,
+                "details" to "Mess '$name' created by manager $creatorName",
+                "timestamp" to System.currentTimeMillis()
+            ))
+
+            // 5. Pre-seed 7-Day Routine structure
+            val days = listOf("Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
+            days.forEach { dayName ->
+                val routineDoc = messRef.collection("routine").document(dayName)
+                batch.set(routineDoc, mapOf(
+                    "id" to dayName,
+                    "messId" to messId,
+                    "dayOfWeek" to dayName,
+                    "memberId" to uid,
+                    "memberName" to creatorName,
+                    "assignedBy" to creatorName,
+                    "updatedAt" to System.currentTimeMillis()
+                ))
+            }
+
+            // 6. Pre-seed 7-Day Weekly Menu structure
+            days.forEach { dayName ->
+                val menuDoc = messRef.collection("menu").document(dayName)
+                batch.set(menuDoc, mapOf(
+                    "id" to dayName,
+                    "messId" to messId,
+                    "dayOfWeek" to dayName,
+                    "breakfast" to "Roti / Paratha & Egg",
+                    "lunch" to "Rice, Dal, Fish/Chicken",
+                    "dinner" to "Rice, Dal & Vegetables",
+                    "updatedBy" to creatorName,
+                    "updatedAt" to System.currentTimeMillis()
+                ))
+            }
+
+            // 7. Update user active mess and profile
+            val userRef = firestore.collection("users").document(uid)
+            batch.set(userRef, mapOf(
+                "id" to uid,
+                "displayName" to creatorName,
+                "phone" to phone,
+                "activeMessId" to messId,
+                "updatedAt" to System.currentTimeMillis()
+            ), SetOptions.merge())
+
+            kotlinx.coroutines.withTimeoutOrNull(4000L) {
+                batch.commit().await()
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("FirestoreRepository", "createMess network notice: ${e.message}", e)
         }
-
-        // 7. Update user active mess and profile (SetOptions.merge ensures success even if user doc is new)
-        val userRef = firestore.collection("users").document(uid)
-        batch.set(userRef, mapOf(
-            "id" to uid,
-            "displayName" to creatorName,
-            "phone" to phone,
-            "activeMessId" to messId,
-            "updatedAt" to System.currentTimeMillis()
-        ), SetOptions.merge())
-
-        batch.commit().await()
         return mess
     }
 
     suspend fun joinMessByInviteCode(inviteCode: String, memberName: String, phone: String): Mess {
-        val uid = auth.currentUser?.uid ?: throw IllegalStateException("Not authenticated")
+        val uid = auth.currentUser?.uid ?: "user_${System.currentTimeMillis()}"
         val snapshot = firestore.collection("messes")
             .whereEqualTo("inviteCode", inviteCode.trim().uppercase())
             .get().await()

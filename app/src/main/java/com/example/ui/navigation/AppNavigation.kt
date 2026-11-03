@@ -128,8 +128,10 @@ fun AppNavigation(
 
     // Routing decision
     val effectiveScreen = when {
-        currentUser == null -> Screen.Login
-        mess == null && userProfile?.activeMessId.isNullOrEmpty() -> Screen.MessSetup
+        currentUser == null && userProfile == null -> Screen.Login
+        currentScreen == Screen.Login -> Screen.Login
+        currentScreen == Screen.MessSetup -> Screen.MessSetup
+        mess == null && userProfile?.activeMessId.isNullOrEmpty() && currentScreen !is Screen.MainPill -> Screen.MessSetup
         else -> currentScreen
     }
 

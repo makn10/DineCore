@@ -20,26 +20,37 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudSync
-import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,6 +60,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -59,6 +73,8 @@ import androidx.credentials.exceptions.GetCredentialCancellationException
 import com.example.R
 import com.example.ui.MainViewModel
 import com.example.ui.components.AppCard
+import com.example.ui.components.AppTextField
+import com.example.ui.components.PrimaryButton
 import com.example.ui.theme.AppColors
 import com.example.ui.theme.LocalExtendedColors
 import com.example.ui.util.AppLanguage
@@ -87,7 +103,19 @@ fun LoginScreen(
     val credentialManager = remember { CredentialManager.create(context) }
     val uiState by viewModel.uiState.collectAsState()
 
-    // Silent Auto-Sign-In on launch if already authenticated or authorized
+    var authTab by remember { mutableIntStateOf(0) } // 0: Sign In, 1: Create Account
+
+    // Sign In form fields
+    var loginEmail by remember { mutableStateOf("") }
+    var loginPassword by remember { mutableStateOf("") }
+
+    // Sign Up form fields
+    var signupName by remember { mutableStateOf("") }
+    var signupEmail by remember { mutableStateOf("") }
+    var signupPassword by remember { mutableStateOf("") }
+    var signupPhone by remember { mutableStateOf("") }
+
+    // Silent Auto-Sign-In on launch if already authenticated
     LaunchedEffect(Unit) {
         if (viewModel.currentUser.value != null) {
             val mess = viewModel.currentMess.value
@@ -102,7 +130,7 @@ fun LoginScreen(
                     if (mess == null) onNavigateToMessSetup() else onNavigateToHome()
                 },
                 onUnauthenticated = {
-                    Log.d(TAG, "No cached credentials found; ready for interactive Google sign-in.")
+                    Log.d(TAG, "No cached credentials found; ready for sign-in.")
                 },
                 scope = coroutineScope
             )
@@ -114,7 +142,7 @@ fun LoginScreen(
             .fillMaxSize()
             .background(extended.screenBackground)
             .verticalScroll(rememberScrollState())
-            .padding(24.dp),
+            .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -146,12 +174,12 @@ fun LoginScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // App Logo Icon
         Box(
             modifier = Modifier
-                .size(80.dp)
+                .size(76.dp)
                 .clip(CircleShape)
                 .background(AppColors.Primary),
             contentAlignment = Alignment.Center
@@ -160,28 +188,28 @@ fun LoginScreen(
                 imageVector = Icons.Default.Restaurant,
                 contentDescription = strings.appName,
                 tint = Color.White,
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(42.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         Text(
             text = strings.appName,
-            fontSize = 28.sp,
+            fontSize = 26.sp,
             fontWeight = FontWeight.ExtraBold,
             color = AppColors.PrimaryDark,
             textAlign = TextAlign.Center
         )
         Text(
             text = strings.appSubtitle,
-            fontSize = 14.sp,
+            fontSize = 13.sp,
             color = extended.textMuted,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
         )
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         // Main Auth Card
         AppCard(testTag = "auth_card") {
@@ -191,45 +219,211 @@ fun LoginScreen(
                     .padding(vertical = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = if (currentLanguage == AppLanguage.BANGLA) "স্বাগতম" else "Welcome to Dine Core",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = extended.textPrimary
-                )
+                // Tab Row for Sign In vs Create Account
+                TabRow(
+                    selectedTabIndex = authTab,
+                    containerColor = extended.screenBackground.copy(alpha = 0.5f),
+                    contentColor = AppColors.Primary,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                ) {
+                    Tab(
+                        selected = authTab == 0,
+                        onClick = { authTab = 0; viewModel.clearMessages() },
+                        text = {
+                            Text(
+                                text = if (currentLanguage == AppLanguage.BANGLA) "লগইন" else "Sign In",
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        modifier = Modifier.testTag("tab_login")
+                    )
+                    Tab(
+                        selected = authTab == 1,
+                        onClick = { authTab = 1; viewModel.clearMessages() },
+                        text = {
+                            Text(
+                                text = if (currentLanguage == AppLanguage.BANGLA) "নতুন একাউন্ট" else "Create Account",
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        modifier = Modifier.testTag("tab_signup")
+                    )
+                }
 
-                Text(
-                    text = if (currentLanguage == AppLanguage.BANGLA)
-                        "১-ট্যাপে আপনার গুগল একাউন্ট দিয়ে লগইন অথবা নতুন একাউন্ট তৈরি করুন"
-                    else
-                        "1-tap sign-in or instant account creation with your Google Account",
-                    fontSize = 13.sp,
-                    color = extended.textMuted,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 6.dp, bottom = 20.dp, start = 8.dp, end = 8.dp)
-                )
+                Spacer(modifier = Modifier.height(18.dp))
 
+                // Error message banner
                 if (uiState.errorMessage != null) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(10.dp))
                             .background(AppColors.Negative.copy(alpha = 0.12f))
-                            .border(1.dp, AppColors.Negative.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
-                            .padding(12.dp)
+                            .border(1.dp, AppColors.Negative.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                            .padding(10.dp)
                     ) {
                         Text(
                             text = uiState.errorMessage.orEmpty(),
                             color = AppColors.Negative,
                             fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
                 }
 
-                // Primary 1-Tap Google Sign-In Button
+                if (authTab == 0) {
+                    // SIGN IN FORM
+                    AppTextField(
+                        value = loginEmail,
+                        onValueChange = {
+                            loginEmail = it
+                            if (uiState.errorMessage != null) viewModel.clearMessages()
+                        },
+                        label = if (currentLanguage == AppLanguage.BANGLA) "ইমেইল অ্যাড্রেস" else "Email Address",
+                        leadingIcon = Icons.Default.Email,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            imeAction = ImeAction.Next
+                        ),
+                        testTag = "input_login_email"
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    AppTextField(
+                        value = loginPassword,
+                        onValueChange = {
+                            loginPassword = it
+                            if (uiState.errorMessage != null) viewModel.clearMessages()
+                        },
+                        label = if (currentLanguage == AppLanguage.BANGLA) "পাসওয়ার্ড" else "Password",
+                        isPassword = true,
+                        leadingIcon = Icons.Default.Lock,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done
+                        ),
+                        testTag = "input_login_password"
+                    )
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    PrimaryButton(
+                        text = if (currentLanguage == AppLanguage.BANGLA) "লগইন করুন" else "Sign In",
+                        isLoading = uiState.isLoading,
+                        onClick = {
+                            viewModel.signInWithEmail(loginEmail, loginPassword) {
+                                val mess = viewModel.currentMess.value
+                                if (mess == null) onNavigateToMessSetup() else onNavigateToHome()
+                            }
+                        },
+                        testTag = "email_login_button"
+                    )
+                } else {
+                    // CREATE ACCOUNT FORM
+                    AppTextField(
+                        value = signupName,
+                        onValueChange = {
+                            signupName = it
+                            if (uiState.errorMessage != null) viewModel.clearMessages()
+                        },
+                        label = if (currentLanguage == AppLanguage.BANGLA) "আপনার পুরো নাম" else "Full Name",
+                        leadingIcon = Icons.Default.Person,
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Words,
+                            imeAction = ImeAction.Next
+                        ),
+                        testTag = "input_signup_name"
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    AppTextField(
+                        value = signupEmail,
+                        onValueChange = {
+                            signupEmail = it
+                            if (uiState.errorMessage != null) viewModel.clearMessages()
+                        },
+                        label = if (currentLanguage == AppLanguage.BANGLA) "ইমেইল অ্যাড্রেস" else "Email Address",
+                        leadingIcon = Icons.Default.Email,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            imeAction = ImeAction.Next
+                        ),
+                        testTag = "input_signup_email"
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    AppTextField(
+                        value = signupPassword,
+                        onValueChange = {
+                            signupPassword = it
+                            if (uiState.errorMessage != null) viewModel.clearMessages()
+                        },
+                        label = if (currentLanguage == AppLanguage.BANGLA) "পাসওয়ার্ড (কমপক্ষে ৬ অক্ষর)" else "Password (min 6 chars)",
+                        isPassword = true,
+                        leadingIcon = Icons.Default.Lock,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Next
+                        ),
+                        testTag = "input_signup_password"
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    AppTextField(
+                        value = signupPhone,
+                        onValueChange = { signupPhone = it },
+                        label = if (currentLanguage == AppLanguage.BANGLA) "ফোন নম্বর" else "Phone Number",
+                        leadingIcon = Icons.Default.Phone,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Phone,
+                            imeAction = ImeAction.Done
+                        ),
+                        testTag = "input_signup_phone"
+                    )
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    PrimaryButton(
+                        text = if (currentLanguage == AppLanguage.BANGLA) "একাউন্ট তৈরি করুন" else "Create Account & Continue",
+                        backgroundColor = AppColors.Indigo,
+                        isLoading = uiState.isLoading,
+                        onClick = {
+                            viewModel.signUpWithEmail(signupName, signupEmail, signupPassword, signupPhone) {
+                                onNavigateToMessSetup()
+                            }
+                        },
+                        testTag = "email_signup_button"
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = extended.border)
+                    Text(
+                        text = if (currentLanguage == AppLanguage.BANGLA) " অথবা " else " OR ",
+                        fontSize = 12.sp,
+                        color = extended.textMuted,
+                        fontWeight = FontWeight.Bold
+                    )
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = extended.border)
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 1-Tap Google Sign-In Button
                 Button(
                     onClick = {
                         viewModel.clearMessages()
@@ -252,51 +446,53 @@ fun LoginScreen(
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(54.dp)
+                        .height(52.dp)
                         .border(1.5.dp, extended.border, RoundedCornerShape(28.dp))
                         .testTag("google_sign_in_button")
                 ) {
-                    if (uiState.isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = AppColors.Primary,
-                            strokeWidth = 2.5.dp
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        GoogleLogoIcon(modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = if (currentLanguage == AppLanguage.BANGLA)
+                                "Google দিয়ে চালিয়ে যান"
+                            else
+                                "Continue with Google",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1F1F1F)
                         )
-                    } else {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            GoogleLogoIcon(modifier = Modifier.size(22.dp))
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = if (currentLanguage == AppLanguage.BANGLA)
-                                    "Google দিয়ে চালিয়ে যান"
-                                else
-                                    "Continue with Google",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF1F1F1F)
-                            )
-                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                Text(
-                    text = if (currentLanguage == AppLanguage.BANGLA)
-                        "কোন পাসওয়ার্ডের ঝামেলা নেই • নিরাপদ ও তাত্ক্ষণিক"
-                    else
-                        "No password required • Secure & Instant",
-                    fontSize = 12.sp,
-                    color = extended.textMuted,
-                    textAlign = TextAlign.Center
-                )
+                // Guest / Quick Demo access for offline or instant testing
+                TextButton(
+                    onClick = {
+                        viewModel.signInAsGuest(loginEmail.substringBefore("@").ifEmpty { "Guest User" }) {
+                            onNavigateToMessSetup()
+                        }
+                    },
+                    modifier = Modifier.testTag("guest_login_button")
+                ) {
+                    Text(
+                        text = if (currentLanguage == AppLanguage.BANGLA)
+                            "লগইন ছাড়া অ্যাপ ঘুরে দেখুন (গেস্ট মোড)"
+                        else
+                            "Explore as Guest (Instant Access)",
+                        fontSize = 13.sp,
+                        color = AppColors.TealTint,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         // Feature Highlights
         AppCard(testTag = "features_card") {
@@ -306,11 +502,11 @@ fun LoginScreen(
                     iconTint = AppColors.Positive,
                     title = if (currentLanguage == AppLanguage.BANGLA) "সহজ ১-ক্লিক একাউন্ট" else "Easy 1-Tap Access",
                     desc = if (currentLanguage == AppLanguage.BANGLA)
-                        "যে কেউ মুহূর্তেই গুগল দিয়ে যুক্ত হতে পারবে"
+                        "ইমেইল বা গুগল দিয়ে মুহূর্তেই একাউন্ট তৈরি করুন"
                     else
-                        "Anyone can join and access mess data with one click"
+                        "Sign in or register in seconds via Email or Google"
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 FeatureRow(
                     icon = Icons.Default.CloudSync,
                     iconTint = AppColors.Charts,
@@ -320,7 +516,7 @@ fun LoginScreen(
                     else
                         "Live meal sheet, bazar, and deposit updates across all members"
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 FeatureRow(
                     icon = Icons.Default.Calculate,
                     iconTint = AppColors.Primary,
@@ -377,11 +573,8 @@ fun GoogleLogoIcon(modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
-        // Draw Google 'G' icon geometry with official colors
-        // Blue, Red, Yellow, Green segments
         val strokeWidth = w * 0.18f
         val radius = (w - strokeWidth) / 2f
-        val center = Offset(w / 2f, h / 2f)
 
         // Blue right arc + horizontal bar
         drawArc(

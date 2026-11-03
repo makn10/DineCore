@@ -248,8 +248,91 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun signInWithEmail(email: String, pass: String, onSuccess: () -> Unit) {
+        val trimmedEmail = email.trim()
+        val trimmedPass = pass.trim()
+        if (trimmedEmail.isEmpty() || trimmedPass.isEmpty()) {
+            _uiState.value = _uiState.value.copy(errorMessage = "Please enter both email and password")
+            return
+        }
+        _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+        viewModelScope.launch {
+            try {
+                val user = repository.signInWithEmail(trimmedEmail, trimmedPass)
+                _currentUser.value = user
+                observeUserProfile(user.uid)
+                _uiState.value = _uiState.value.copy(isLoading = false)
+                onSuccess()
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = e.localizedMessage ?: "Login failed. Please check your credentials."
+                )
+            }
+        }
+    }
+
+    fun signUpWithEmail(name: String, email: String, pass: String, phone: String, onSuccess: () -> Unit) {
+        val trimmedName = name.trim()
+        val trimmedEmail = email.trim()
+        val trimmedPass = pass.trim()
+        val trimmedPhone = phone.trim()
+
+        if (trimmedName.isEmpty()) {
+            _uiState.value = _uiState.value.copy(errorMessage = "Please enter your full name")
+            return
+        }
+        if (trimmedEmail.isEmpty() || !trimmedEmail.contains("@")) {
+            _uiState.value = _uiState.value.copy(errorMessage = "Please enter a valid email address")
+            return
+        }
+        if (trimmedPass.length < 6) {
+            _uiState.value = _uiState.value.copy(errorMessage = "Password must be at least 6 characters")
+            return
+        }
+
+        _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+        viewModelScope.launch {
+            try {
+                val user = repository.signUpWithEmail(trimmedName, trimmedEmail, trimmedPass, trimmedPhone)
+                _currentUser.value = user
+                _userProfile.value = UserProfile(
+                    id = user.uid,
+                    email = trimmedEmail,
+                    displayName = trimmedName,
+                    phone = trimmedPhone
+                )
+                observeUserProfile(user.uid)
+                _uiState.value = _uiState.value.copy(isLoading = false, successMessage = "Account created successfully!")
+                onSuccess()
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = e.localizedMessage ?: "Sign up failed. Please try again."
+                )
+            }
+        }
+    }
+
+    fun signInAsGuest(name: String, onSuccess: () -> Unit) {
+        val guestName = name.trim().ifEmpty { "Guest Manager" }
+        val guestId = "guest_" + System.currentTimeMillis()
+        _userProfile.value = UserProfile(
+            id = guestId,
+            email = "guest@dinecore.local",
+            displayName = guestName,
+            phone = "01700000000"
+        )
+        _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = null)
+        onSuccess()
+    }
+
     fun signOut(onSignedOut: () -> Unit) {
-        repository.auth.signOut()
+        try {
+            repository.auth.signOut()
+        } catch (e: Exception) {
+            // Ignore
+        }
         _currentUser.value = null
         _userProfile.value = null
         _currentMess.value = null
@@ -273,12 +356,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val mess = repository.createMess(trimmedName, address.trim(), trimmedCreator, phone.trim())
                 _currentMess.value = mess
-                val uid = repository.currentUser?.uid.orEmpty()
-                _userProfile.value = (_userProfile.value ?: UserProfile(id = uid, email = repository.currentUser?.email.orEmpty())).copy(
+                val uid = repository.currentUser?.uid ?: _userProfile.value?.id ?: "manager_${System.currentTimeMillis()}"
+                
+                // Immediately update local user profile
+                val updatedProfile = (_userProfile.value ?: UserProfile(id = uid, email = repository.currentUser?.email.orEmpty())).copy(
                     activeMessId = mess.id,
                     displayName = trimmedCreator,
                     phone = phone.trim()
                 )
+                _userProfile.value = updatedProfile
+
+                // Immediately seed initial manager in members list
+                val initialManager = Member(
+                    id = uid,
+                    messId = mess.id,
+                    userId = uid,
+                    name = trimmedCreator,
+                    phone = phone.trim(),
+                    role = MemberRole.MANAGER,
+                    isActive = true,
+                    openingBalancePaisa = 0L,
+                    joinedAt = System.currentTimeMillis()
+                )
+                _members.value = listOf(initialManager)
+                _selectedPeriodId.value = mess.currentPeriodId
+
                 observeMess(mess.id)
                 _uiState.value = _uiState.value.copy(isLoading = false, successMessage = "Mess created successfully!")
                 onSuccess()
@@ -305,12 +407,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val mess = repository.joinMessByInviteCode(trimmedCode, trimmedName, phone.trim())
                 _currentMess.value = mess
-                val uid = repository.currentUser?.uid.orEmpty()
-                _userProfile.value = (_userProfile.value ?: UserProfile(id = uid, email = repository.currentUser?.email.orEmpty())).copy(
+                val uid = repository.currentUser?.uid ?: _userProfile.value?.id ?: "member_${System.currentTimeMillis()}"
+                val updatedProfile = (_userProfile.value ?: UserProfile(id = uid, email = repository.currentUser?.email.orEmpty())).copy(
                     activeMessId = mess.id,
                     displayName = trimmedName,
                     phone = phone.trim()
                 )
+                _userProfile.value = updatedProfile
+
+                val initialMember = Member(
+                    id = uid,
+                    messId = mess.id,
+                    userId = uid,
+                    name = trimmedName,
+                    phone = phone.trim(),
+                    role = MemberRole.MEMBER,
+                    isActive = true,
+                    openingBalancePaisa = 0L,
+                    joinedAt = System.currentTimeMillis()
+                )
+                _members.value = listOf(initialMember)
+                _selectedPeriodId.value = mess.currentPeriodId
+
                 observeMess(mess.id)
                 _uiState.value = _uiState.value.copy(isLoading = false, successMessage = "Joined mess successfully!")
                 onSuccess()

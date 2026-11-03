@@ -21,7 +21,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: Verify Java environment
         run: |
@@ -34,14 +34,28 @@ jobs:
             exit 1
           fi
 
+      - name: Accept Android SDK licenses
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.3.1'
 
-      - name: Create temporary debug keystore
+      - name: Prepare environment files
         run: |
-          if [ ! -f debug.keystore ]; then
+          touch .env
+          if [ -f .env.example ]; then
+            cp .env.example .env
+          fi
+
+      - name: Set up debug keystore
+        run: |
+          if [ -f debug.keystore.base64 ]; then
+            echo "Decoding debug.keystore.base64 to debug.keystore..."
+            base64 -d debug.keystore.base64 > debug.keystore
+          elif [ ! -f debug.keystore ]; then
             echo "Generating temporary debug keystore..."
             keytool -genkeypair -v \
               -keystore debug.keystore \
@@ -52,12 +66,11 @@ jobs:
               -keysize 2048 \
               -validity 10000 \
               -dname "CN=Android Debug,O=Android,C=US"
-          else
-            echo "debug.keystore already exists."
           fi
+          ls -lh debug.keystore
 
       - name: Build debug APK
-        run: gradle :app:assembleDebug --stacktrace --no-daemon
+        run: gradle :app:assembleDebug --stacktrace --no-daemon -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=1g"
 
       - name: Verify APK
         run: |
@@ -105,7 +118,7 @@ jobs:
           - **Built by:** GitHub Actions
           - **Asset:** \`${{ steps.prepare_asset.outputs.asset_name }}\`
 
-          *Note: This is an automatically generated debug APK intended for testing and verification purposes. It is signed with a temporary debug keystore and is not suitable for Google Play Store release.*
+          *Note: This is an automatically generated debug APK intended for testing and verification purposes. It is signed with the configured debug keystore.*
           EOF
           )
 
