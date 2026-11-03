@@ -38,27 +38,24 @@ class FirestoreRepository(private val context: Context) {
 
     val auth: FirebaseAuth by lazy {
         try {
-            if (FirebaseApp.getApps(context).isEmpty()) {
-                FirebaseApp.initializeApp(context)
-            }
+            com.example.DineCoreApp.initFirebase(context)
             FirebaseAuth.getInstance()
         } catch (e: Throwable) {
             android.util.Log.e("FirestoreRepository", "FirebaseAuth initialization error: ${e.message}", e)
+            com.example.DineCoreApp.initFirebase(context)
             FirebaseAuth.getInstance()
         }
     }
 
     private val firestore: FirebaseFirestore by lazy {
         try {
-            if (FirebaseApp.getApps(context).isEmpty()) {
-                FirebaseApp.initializeApp(context)
-            }
+            val app = com.example.DineCoreApp.initFirebase(context) ?: FirebaseApp.getInstance()
             val resId = context.resources.getIdentifier("firestore_database_id", "string", context.packageName)
             val dbId = if (resId != 0) context.getString(resId) else ""
             if (dbId.isNotEmpty() && dbId != "default") {
-                FirebaseFirestore.getInstance(FirebaseApp.getInstance(), dbId)
+                FirebaseFirestore.getInstance(app, dbId)
             } else {
-                FirebaseFirestore.getInstance()
+                FirebaseFirestore.getInstance(app)
             }
         } catch (e: Throwable) {
             android.util.Log.e("FirestoreRepository", "FirebaseFirestore initialization error: ${e.message}", e)
