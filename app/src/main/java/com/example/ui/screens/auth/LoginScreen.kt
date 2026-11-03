@@ -626,6 +626,15 @@ fun GoogleLogoIcon(modifier: Modifier = Modifier) {
     }
 }
 
+private fun getWebClientId(context: Context): String {
+    val resId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
+    if (resId != 0) {
+        val str = context.getString(resId)
+        if (str.isNotBlank()) return str
+    }
+    return "418573393556-kic204e2k67463ldi5u28o0aip1o5fsd.apps.googleusercontent.com"
+}
+
 /**
  * Interactive Sign-In with Google via Jetpack CredentialManager
  */
@@ -636,9 +645,8 @@ fun onGoogleSignInClicked(
     onAuthSuccess: () -> Unit,
     coroutineScope: CoroutineScope
 ) {
-    val clientId = try {
-        context.getString(R.string.default_web_client_id)
-    } catch (e: Exception) {
+    val clientId = getWebClientId(context)
+    if (clientId.isEmpty()) {
         viewModel.setErrorMessage("Google Sign-In configuration missing: default_web_client_id not found")
         return
     }
@@ -680,9 +688,8 @@ fun attemptAutoSignIn(
     onUnauthenticated: () -> Unit,
     scope: CoroutineScope
 ) {
-    val clientId = try {
-        context.getString(R.string.default_web_client_id)
-    } catch (e: Exception) {
+    val clientId = getWebClientId(context)
+    if (clientId.isEmpty()) {
         onUnauthenticated()
         return
     }

@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Dine Core</string>
+    <string name="default_web_client_id" translatable="false">418573393556-kic204e2k67463ldi5u28o0aip1o5fsd.apps.googleusercontent.com</string>
 </resources>
